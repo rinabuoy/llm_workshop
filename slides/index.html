@@ -1,0 +1,1310 @@
+<title>LLM Fundamentals Workshop</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Layout: one 16:9 stage scaled to the window, sized in container units; below 760px the slides stack as a scrolling document.
+   Motif: the token chip and the next-token probability bar. */
+:root {
+  --bg: #EEF2EF;
+  --surface: #FFFFFF;
+  --tint: #F3F6F4;
+  --ink: #15201C;
+  --muted: #5A6862;
+  --line: #D3DCD7;
+  --accent: #0D7663;
+  --accent-soft: #D6EDE6;
+  --on-accent: #FFFFFF;
+  --amber: #B97A06;
+  --amber-soft: #FBEBC6;
+  --rose: #B4232F;
+  --plate: #FFFFFF;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "IBM Plex Sans", "Helvetica Neue", Arial, system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1210; --surface: #141D1A; --tint: #1B2622; --ink: #E3EBE6; --muted: #95A69E; --line: #2B3A34;
+    --accent: #43C6A7; --accent-soft: #173D34; --on-accent: #06120E; --amber: #F1B64A; --amber-soft: #3D2F12;
+    --rose: #F07A82; --plate: #F6F8F7; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1210; --surface: #141D1A; --tint: #1B2622; --ink: #E3EBE6; --muted: #95A69E; --line: #2B3A34;
+  --accent: #43C6A7; --accent-soft: #173D34; --on-accent: #06120E; --amber: #F1B64A; --amber-soft: #3D2F12;
+  --rose: #F07A82; --plate: #F6F8F7; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body);
+  display: flex; flex-direction: column; overflow: hidden;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- shell ---------- */
+.topbar { display: flex; align-items: center; gap: 12px; padding-block: 10px 8px; min-width: 0; }
+.brand { font-family: var(--display); font-weight: 700; font-size: 15px; white-space: nowrap; }
+.crumb { font-family: var(--mono); font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.spacer { flex: 1; }
+.tbtn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 6px 11px; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.tbtn:hover { border-color: var(--accent); }
+.stage { flex: 1; min-height: 0; container-type: size; display: grid; place-items: center; }
+.deck {
+  position: relative; width: min(100cqw, calc(100cqh * 16 / 9)); aspect-ratio: 16 / 9; max-width: 100%;
+  container-type: inline-size; background: var(--surface); border-radius: 14px; overflow: hidden;
+  box-shadow: 0 1px 2px rgb(0 0 0 / .06), 0 12px 40px rgb(0 0 0 / .08);
+}
+.bottombar { display: flex; align-items: center; gap: 12px; padding-block: 8px 12px; }
+.progress { flex: 1; height: 4px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .25s; }
+.count { font-family: var(--mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 64px; text-align: center; }
+.nav { border: 0; background: var(--accent); color: var(--on-accent); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 16px; display: grid; place-items: center; }
+.nav:disabled { opacity: .35; cursor: default; }
+.hint { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+/* ---------- slide frame ---------- */
+.slide {
+  position: absolute; inset: 0; padding: 3.6cqw 4.6cqw 3.2cqw; font-size: 1.5cqw; line-height: 1.4;
+  display: none; flex-direction: column; gap: .9em; overflow: hidden;
+}
+.slide.active { display: flex; animation: enter .28s ease-out; }
+@keyframes enter { from { opacity: .4; transform: translateY(.4cqw); } to { opacity: 1; transform: none; } }
+.pg { position: absolute; right: 4.6cqw; bottom: 1.6cqw; font-family: var(--mono); font-size: .6em; color: var(--muted); }
+.eyebrow { font-family: var(--mono); font-size: .72em; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--accent); margin: 0; }
+.slide h2 { font-family: var(--display); font-weight: 700; font-size: 2.05em; line-height: 1.08; letter-spacing: -.015em; margin: 0; text-wrap: balance; }
+.slide h3 { font-family: var(--display); font-weight: 700; font-size: 1.05em; margin: 0 0 .3em; }
+.slide p { margin: 0; }
+.head { display: flex; flex-direction: column; gap: .3em; }
+.lede { color: var(--muted); font-size: 1em; max-width: 60em; }
+.body { flex: 1; min-height: 0; display: grid; gap: 1.2em; grid-template-rows: minmax(0, 1fr); }
+.cols { grid-template-columns: 1fr 1fr; }
+.cols-3 { grid-template-columns: repeat(3, 1fr); }
+.cols-wide { grid-template-columns: 1.25fr 1fr; }
+.cols-fig { grid-template-columns: 1fr 1.9fr; }
+.body.cols, .body.cols-3, .body.fit { grid-template-rows: auto; align-content: center; }
+.stack { display: flex; flex-direction: column; gap: .8em; min-height: 0; min-width: 0; }
+.card { background: var(--tint); border-radius: .55em; padding: .9em 1em; min-width: 0; }
+.card p { color: var(--ink); font-size: 1em; }
+.card .k { font-family: var(--mono); font-size: .72em; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 600; margin-bottom: .35em; }
+ul.clean { margin: 0; padding-left: 1.1em; display: grid; gap: .35em; }
+ul.clean li::marker { color: var(--accent); }
+.muted { color: var(--muted); }
+.mono { font-family: var(--mono); }
+.callout { border-radius: .55em; padding: .8em 1em; background: var(--accent-soft); font-weight: 500; }
+.callout.amber { background: var(--amber-soft); }
+.plate { background: var(--plate); border-radius: .55em; padding: .7em; display: flex; align-items: center; justify-content: center; min-height: 0; min-width: 0; border: 1px solid var(--line); }
+.plate img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.cap { font-size: .8em; color: var(--muted); }
+.chip { display: inline-flex; align-items: center; font-family: var(--mono); font-size: .82em; padding: .14em .5em; border-radius: .35em; background: var(--tint); border: 1px solid var(--line); white-space: nowrap; }
+.chip.on { background: var(--accent-soft); border-color: var(--accent); }
+.chip.tgt { background: var(--amber-soft); border-color: var(--amber); }
+.chip.off { opacity: .35; }
+.arrow { color: var(--muted); font-family: var(--mono); }
+code, .code { font-family: var(--mono); font-size: .85em; }
+.tool { flex: 1; background: var(--surface); border: 1px solid var(--line); border-radius: .5em; padding: .8em .9em; display: flex; flex-direction: column; justify-content: center; gap: .35em; min-width: 0; }
+.tool code { font-size: .95em; color: var(--accent); font-weight: 600; overflow-wrap: anywhere; }
+.tool p { color: var(--ink); font-size: .95em; }
+.codebox { font-family: var(--mono); font-size: .9em; background: var(--tint); border-radius: .5em; padding: .7em .9em; white-space: pre-wrap; line-height: 1.45; }
+.math { font-family: "Cambria Math", "STIX Two Math", Cambria, "Times New Roman", serif; font-size: 1.15em; }
+.math i { font-style: italic; }
+
+/* fragments */
+.deck [data-step] { transition: opacity .3s, transform .3s; }
+.deck [data-step]:not(.shown) { opacity: 0; transform: translateY(.3em); pointer-events: none; }
+
+/* divider & title */
+.slide.divider { background: var(--accent); color: var(--on-accent); justify-content: center; }
+.slide.divider .eyebrow { color: var(--on-accent); opacity: .8; }
+.slide.divider h2 { font-size: 3.6em; max-width: 14em; }
+.slide.divider .lede { color: var(--on-accent); opacity: .85; font-size: 1.15em; }
+.slide.divider .pg { color: var(--on-accent); }
+.agenda { display: flex; gap: .6em; flex-wrap: wrap; margin-top: 1.4em; }
+.agenda span { font-family: var(--mono); font-size: .7em; padding: .35em .7em; border-radius: 2em; border: 1px solid currentColor; opacity: .55; }
+.agenda span.now { opacity: 1; background: var(--on-accent); color: var(--accent); border-color: var(--on-accent); }
+
+.title-grid { flex: 1; display: grid; grid-template-columns: 1.3fr 1fr; gap: 2.4em; align-items: center; min-height: 0; }
+.title-grid h1 { font-family: var(--display); font-weight: 800; font-size: 4.4em; line-height: .98; letter-spacing: -.03em; margin: .15em 0 .25em; }
+.title-grid .sub { font-size: 1.35em; color: var(--muted); max-width: 20em; }
+.meta { display: flex; gap: 2.4em; margin-top: 1.8em; flex-wrap: wrap; }
+.meta div { display: grid; gap: .15em; }
+.meta b { font-weight: 600; }
+.nextok { background: var(--tint); border-radius: .8em; padding: 1.3em 1.4em; display: grid; gap: .7em; }
+.nextok .prompt { font-family: var(--mono); font-size: .95em; }
+.nextok .prompt span { background: var(--amber-soft); border: 1px dashed var(--amber); border-radius: .3em; padding: 0 .4em; }
+.bar { display: grid; grid-template-columns: 6.6em 1fr 3.2em; align-items: center; gap: .6em; font-family: var(--mono); font-size: .82em; }
+.bar .track { height: .75em; background: var(--line); border-radius: .4em; overflow: hidden; }
+.bar .track i { display: block; height: 100%; background: var(--accent); border-radius: .4em; }
+.bar .v { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* flows */
+.flow { display: flex; align-items: center; gap: .6em; flex-wrap: wrap; }
+.node { border: 1.5px solid var(--ink); border-radius: .45em; padding: .45em .8em; background: var(--surface); font-weight: 500; text-align: center; }
+.node.llm { background: var(--accent-soft); border-color: var(--accent); }
+.node.kb { background: var(--amber-soft); border-color: var(--amber); }
+.node.mono { font-family: var(--mono); font-size: .82em; font-weight: 400; text-align: left; }
+.ex-row { display: grid; grid-template-columns: 2.2em 1fr; gap: .9em; align-items: center; }
+.ex-row .n { width: 2em; height: 2em; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); font-family: var(--mono); font-weight: 600; font-size: .85em; }
+
+/* widgets */
+.panel { background: var(--tint); border-radius: .6em; padding: .9em 1em; min-width: 0; min-height: 0; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: .5em; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: .35em .75em; font-size: .88em; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.ctrl { display: grid; grid-template-columns: 7.2em 1fr 3em; gap: .6em; align-items: center; font-size: .9em; }
+.ctrl input[type=range] { width: 100%; accent-color: var(--accent); }
+.ctrl output { font-family: var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.ctrl.disabled { opacity: .35; }
+.btn { border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); border-radius: .45em; padding: .35em .85em; font-size: .9em; cursor: pointer; font-weight: 500; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.row { display: flex; gap: .5em; align-items: center; flex-wrap: wrap; }
+.pbars { display: grid; gap: .32em; }
+.pbar { display: grid; grid-template-columns: 7em 1fr 3.6em 3.2em; align-items: center; gap: .55em; font-family: var(--mono); font-size: .86em; }
+.pbar .track { height: .9em; background: var(--line); border-radius: .3em; overflow: hidden; position: relative; }
+.pbar .track i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: .3em; transition: width .25s; }
+.pbar .track b { position: absolute; left: 0; bottom: 0; height: .25em; background: var(--amber); transition: width .25s; }
+.pbar .v, .pbar .c { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.pbar.cut { opacity: .38; }
+.pbar.cut .w { text-decoration: line-through; }
+.pbar.hit .w { color: var(--amber); font-weight: 600; }
+.outline { font-family: var(--mono); font-size: .9em; background: var(--surface); border-radius: .45em; padding: .55em .8em; border: 1px solid var(--line); min-height: 2.3em; overflow-wrap: anywhere; }
+.outline em { font-style: normal; background: var(--amber-soft); border-radius: .25em; padding: 0 .25em; }
+.chunks { display: flex; flex-wrap: wrap; gap: .45em; align-content: flex-start; overflow: auto; min-height: 0; }
+.chunk { font-size: .8em; line-height: 1.45; background: var(--surface); border: 1px solid var(--line); border-radius: .45em; padding: .45em .6em; flex: 1 1 15em; min-width: 0; }
+.chunk .lbl { font-family: var(--mono); font-size: .85em; color: var(--accent); display: block; margin-bottom: .2em; }
+.chunk mark { background: var(--amber-soft); color: inherit; border-radius: .2em; }
+.ranklist { display: grid; gap: .3em; }
+.rank { display: grid; grid-template-columns: 2em 1fr 6.4em; align-items: center; gap: .6em; padding: .32em .55em; border-radius: .45em; border: 1px solid var(--line); background: var(--surface); cursor: pointer; font-size: .9em; text-align: left; }
+.rank .r { font-family: var(--mono); color: var(--muted); }
+.rank .tag { font-family: var(--mono); font-size: .8em; text-align: right; color: var(--muted); }
+.rank[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.rank[aria-pressed="true"] .tag { color: var(--accent); font-weight: 600; }
+.rank.outk { opacity: .4; }
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: .6em; }
+.metric { background: var(--surface); border-radius: .5em; padding: .6em .75em; border: 1px solid var(--line); }
+.metric .name { font-family: var(--mono); font-size: .72em; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.metric .val { font-family: var(--display); font-weight: 700; font-size: 1.7em; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.metric .f { font-family: var(--mono); font-size: .74em; color: var(--muted); }
+svg text { font-family: var(--body); }
+.svgwrap { min-height: 0; min-width: 0; display: flex; align-items: center; justify-content: center; }
+.svgwrap svg { width: 100%; height: 100%; max-height: 100%; }
+
+.react-grid { grid-template-columns: 1.15fr 1fr; }
+.trace { display: grid; gap: .35em; align-content: start; overflow: auto; min-height: 0; }
+.trace div { display: grid; grid-template-columns: 5em 1fr; gap: .6em; font-size: .9em; padding: .4em .6em; border-radius: .4em; background: var(--surface); border: 1px solid var(--line); }
+.trace div.cur { border-color: var(--accent); background: var(--accent-soft); }
+.trace b { font-family: var(--mono); font-size: .9em; color: var(--accent); text-transform: uppercase; letter-spacing: .06em; }
+.trace span { font-family: var(--mono); overflow-wrap: anywhere; }
+
+/* overview */
+.overview { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow: auto;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.overview header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.overview h2 { font-family: var(--display); margin: 0; font-size: 22px; }
+.ov-sec { margin-bottom: 18px; }
+.ov-sec h3 { font-family: var(--mono); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin: 0 0 8px; }
+.ov-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.ov-grid button { text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 10px; cursor: pointer; font-size: 13px; display: grid; grid-template-columns: 28px 1fr; gap: 6px; }
+.ov-grid button span { font-family: var(--mono); color: var(--muted); font-size: 12px; }
+.ov-grid button.cur { border-color: var(--accent); background: var(--accent-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .slide.active { animation: none; }
+  .deck [data-step], .pbar .track i, .pbar .track b, .progress i { transition: none; }
+}
+
+/* ---------- phone / narrow: stacked document ---------- */
+@media (max-width: 760px) {
+  html, body { height: auto; }
+  body { overflow: auto; display: block; padding-block: 0 24px; }
+  .topbar { position: sticky; top: env(safe-area-inset-top, 0px); background: var(--bg); z-index: 5; }
+  body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+  .crumb, .bottombar, .hint, #fsBtn { display: none; }
+  .stage { container-type: normal; display: block; }
+  .deck { width: auto; aspect-ratio: auto; background: transparent; box-shadow: none; overflow: visible; display: flex; flex-direction: column; gap: 14px; container-type: normal; }
+  .slide { position: relative; inset: auto; display: flex; font-size: 15px; padding: 22px 18px 34px; background: var(--surface); border-radius: 12px; animation: none; }
+  .slide.divider { min-height: 0; }
+  .slide.divider h2 { font-size: 2.2em; }
+  .pg { right: 18px; bottom: 12px; }
+  .body, .cols, .cols-3, .cols-wide, .cols-fig, .react-grid, .title-grid { grid-template-columns: 1fr; grid-template-rows: none; }
+  .title-grid h1 { font-size: 2.8em; }
+  .plate img { height: auto; }
+  .deck [data-step]:not(.shown) { opacity: 1; transform: none; pointer-events: auto; }
+  .chunks, .trace { overflow: visible; }
+  .pbar { grid-template-columns: 6em 1fr 3.4em 3em; }
+}
+</style>
+
+<div class="topbar">
+  <div class="brand">LLM Fundamentals</div>
+  <div class="crumb" id="crumb"></div>
+  <div class="spacer"></div>
+  <button class="tbtn" id="ovBtn" type="button" title="All slides (O)">All slides</button>
+  <button class="tbtn" id="fsBtn" type="button" title="Full screen (F)">Full screen</button>
+</div>
+
+<main class="stage">
+<div class="deck" id="deck">
+
+<!-- ===================== WELCOME ===================== -->
+<section class="slide" data-section="Welcome" data-title="LLM Fundamentals">
+  <div class="title-grid">
+    <div>
+      <p class="eyebrow">Special Workshop</p>
+      <h1>LLM Fundamentals</h1>
+      <p class="sub">From Basics to AI Agents with Real Practices</p>
+      <div class="meta">
+        <div><span class="cap">PRESENTER</span><b>Rina Buoy, PhD</b></div>
+        <div><span class="cap">DATE &amp; TIME</span><b>21 Oct 2026 · 8:00 AM – 12:00 PM</b></div>
+      </div>
+    </div>
+    <div class="nextok" aria-label="Example next-token distribution">
+      <div class="cap mono">P(next token | context)</div>
+      <div class="prompt">From basics to <span>&nbsp;?&nbsp;</span></div>
+      <div class="bar"><span>agents</span><span class="track"><i style="width:58%"></i></span><span class="v">0.58</span></div>
+      <div class="bar"><span>practice</span><span class="track"><i style="width:24%"></i></span><span class="v">0.24</span></div>
+      <div class="bar"><span>advanced</span><span class="track"><i style="width:11%"></i></span><span class="v">0.11</span></div>
+      <div class="bar"><span>theory</span><span class="track"><i style="width:5%"></i></span><span class="v">0.05</span></div>
+      <div class="bar"><span>…</span><span class="track"><i style="width:2%"></i></span><span class="v">0.02</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-section="Welcome" data-title="About me">
+  <div class="head"><p class="eyebrow">Introduction</p><h2>About Me</h2></div>
+  <div class="body cols-wide">
+    <div class="stack">
+      <div class="card"><div class="k">Teaching experience</div>
+        <ul class="clean"><li>ML/AI/DL courses for Master’s programs at AUPP, UP &amp; RUPP</li><li>AI/DS certification programs at AUPP</li></ul></div>
+      <div class="card"><div class="k">Working experience</div>
+        <ul class="clean"><li><b>2020 – now:</b> Senior AI Researcher, Techo Startup Center (TSC)</li><li><b>2012 – 2020:</b> R&amp;D Lead, Three60 Energy (Malaysia)</li></ul></div>
+      <div class="card"><div class="k">Education</div>
+        <ul class="clean"><li>PhD in Intelligent Informatics (AI), Osaka Metropolitan University (OMU)</li><li>Master’s in Geoscience (Universiti Teknologi PETRONAS) and in IT Engineering (RUPP)</li><li>Bachelor of Petroleum Engineering, Universiti Teknologi PETRONAS</li></ul></div>
+    </div>
+    <div class="stack" style="align-items:center">
+      <div class="plate" style="flex:1;width:100%"><img src="assets/image2.png" alt="Portrait of Rina Buoy above a QR code labelled @RINABUOY"></div>
+      <p class="cap" style="text-align:center"><a href="https://rinabuoy.com/" target="_blank" rel="noopener" style="color:var(--accent)">rinabuoy.com</a> · Facebook: Dr Rina Buoy</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== LLM BASICS ===================== -->
+<section class="slide divider" data-section="LLM Basics" data-title="Topic: LLM Basics">
+  <p class="eyebrow">Topic overview · Part 1</p>
+  <h2>LLM Basics</h2>
+  <p class="lede">How a model learns to predict the next token, how we turn that into text, and how post-training makes it an assistant.</p>
+  <div class="agenda"><span class="now">LLM Basics</span><span>RAG</span><span>Tool Calling &amp; MCP</span><span>AI Agents</span></div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="LLMs took over the world">
+  <div class="head"><p class="eyebrow">LLMs</p><h2>LLMs &amp; chatbots took over the world</h2></div>
+  <div class="body" style="align-content:center;justify-items:center;grid-template-rows:auto auto">
+    <div class="row" style="gap:1em;font-size:1.5em;justify-content:center">
+      <span class="chip">ChatGPT</span><span class="chip">Claude</span><span class="chip">Gemini</span><span class="chip">Llama</span>
+    </div>
+    <p style="font-family:var(--display);font-weight:700;font-size:2.6em;color:var(--accent)" data-step="1">How do they work?</p>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="LLM training">
+  <div class="head"><p class="eyebrow">Two stages</p><h2>LLM Training</h2></div>
+  <div class="body fit" style="grid-template-columns:1fr auto 1fr">
+    <div class="card" style="display:grid;align-content:start;gap:.7em">
+      <div class="k">Stage 1</div><h3 style="font-size:1.5em">Pre-training</h3>
+      <ul class="clean"><li>Large-scale data</li><li>Large-scale compute</li><li>Cost-intensive</li></ul>
+      <p class="cap">Result: a model that continues text.</p>
+    </div>
+    <div style="display:grid;place-items:center;font-size:2em;color:var(--accent)">→</div>
+    <div class="card" style="display:grid;align-content:start;gap:.7em" data-step="1">
+      <div class="k">Stage 2</div><h3 style="font-size:1.5em">Post-training</h3>
+      <ul class="clean"><li>Supervised fine-tuning (SFT)</li><li>Preference tuning</li></ul>
+      <div class="callout">Less data · less compute · low cost</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="Language modeling: objective">
+  <div class="head"><p class="eyebrow">Language modeling</p><h2>Objective</h2></div>
+  <div class="body cols" style="align-content:center">
+    <div class="stack">
+      <p><b>Language model:</b> a probability distribution over sequences of tokens <span class="math">p(<i>x</i><sub>1</sub>, …, <i>x</i><sub>L</sub>)</span></p>
+      <p><b>LMs are generative:</b> <span class="math"><i>x</i><sub>1:L</sub> ~ p(<i>x</i><sub>1</sub>, …, <i>x</i><sub>L</sub>)</span></p>
+      <div class="card" style="display:grid;grid-template-columns:auto auto;gap:.5em 1.2em;align-items:baseline;justify-content:start;font-size:.92em;white-space:nowrap">
+        <span class="math">P(the, mouse, ate, the, cheese) = 0.02</span><span class="cap">correct</span>
+        <span class="math">P(the, the, mouse, ate, cheese) = 0.0001</span><span class="cap">syntactic knowledge</span>
+        <span class="math">P(the, cheese, ate, the, mouse) = 0.001</span><span class="cap">semantic knowledge</span>
+      </div>
+    </div>
+    <div class="stack" data-step="1">
+      <p><b>Autoregressive (AR) models</b> factor the sequence with the chain rule of probability (no approximation):</p>
+      <div class="card math" style="font-size:1.25em;text-align:center">p(<i>x</i><sub>1</sub>, …, <i>x</i><sub>L</sub>) = p(<i>x</i><sub>1</sub>) p(<i>x</i><sub>2</sub>|<i>x</i><sub>1</sub>) p(<i>x</i><sub>3</sub>|<i>x</i><sub>2</sub>, <i>x</i><sub>1</sub>) … = ∏<sub><i>i</i></sub> p(<i>x</i><sub><i>i</i></sub> | <i>x</i><sub>1:<i>i</i>−1</sub>)</div>
+      <div class="callout">⇒ You only need a model that can predict the <b>next token</b> given the past context.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="Training samples">
+  <div class="head"><p class="eyebrow">Language modeling</p><h2>Training Samples</h2>
+    <p class="lede">One sentence becomes many training examples. The model sees the <span class="chip on">input</span> and must predict the <span class="chip tgt">target</span>. It can’t see words past the target.</p></div>
+  <div class="body" style="grid-template-rows:minmax(0,1fr) auto">
+    <div id="tsRows" class="stack" style="gap:.5em;justify-content:center;font-size:1.2em"></div>
+    <div class="row"><button class="btn" id="tsPlay" type="button">Play</button><button class="btn ghost" id="tsPrev" type="button">◀ Step</button><button class="btn ghost" id="tsNext" type="button">Step ▶</button><span class="cap" id="tsInfo"></span></div>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="Context window">
+  <div class="head"><p class="eyebrow">Language modeling</p><h2>Context Window</h2>
+    <p class="lede">The maximum number of tokens an LLM can process in one go.</p></div>
+  <div class="body cols-wide" style="align-items:center">
+    <div style="display:grid;grid-template-columns:1fr auto auto;gap:.8em;align-items:center">
+      <div style="border:2px dashed var(--accent);border-radius:.7em;padding:.8em;display:grid;gap:.45em">
+        <div class="mono cap" style="color:var(--accent)">CONTEXT WINDOW</div>
+        <div class="node mono" style="text-align:left">System instructions from the provider</div>
+        <div class="node mono" style="text-align:left">Default directives you set up</div>
+        <div class="node mono" style="text-align:left">Your conversation history</div>
+        <div class="node mono" style="text-align:left">Attached files &amp; looked-up websites</div>
+      </div>
+      <div class="arrow" style="font-size:1.6em">→</div>
+      <div class="node kb mono">next<br>token</div>
+    </div>
+    <div class="stack">
+      <p>For a modern chat assistant, the window may include:</p>
+      <ul class="clean"><li>Instructions from the company behind the assistant</li><li>Any default directives you’ve set up</li><li>Your conversation history</li><li>The contents of attached files or websites it looked up</li></ul>
+      <div class="callout amber">Everything the model “knows” about this chat must fit inside the window.</div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="LLM evolution">
+  <div class="head"><p class="eyebrow">LLM evolution</p><h2>Converging to Decoder-only Transformers</h2></div>
+  <div class="body"><div class="plate"><img src="assets/image7.png" alt="A black-box neural network diagram: input tokens go through layers of a transformer to an output token; GPT-3 has 175B+ parameters."></div></div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="Loss function">
+  <div class="head"><p class="eyebrow">Training</p><h2>Loss Function</h2></div>
+  <div class="body cols-fig" style="align-items:center">
+    <div class="stack">
+      <div class="card"><div class="k">Classification objective</div><p style="color:var(--ink);font-size:1em">Classify the next token’s index in the vocabulary</p></div>
+      <div class="callout">⇒ cross-entropy loss<br><span class="math" style="font-weight:400">Loss = −log p(target)</span> → min</div>
+    </div>
+    <div class="plate"><img src="assets/image8.png" alt="Training example 'I saw a cat on a mat': the model's prediction for the word after 'I saw a' is compared to the target 'cat'; the loss increases the probability of cat and decreases the others."></div>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="AR language models">
+  <div class="head"><p class="eyebrow">Generation pipeline</p><h2>AR Language Models</h2></div>
+  <div class="body" style="grid-template-rows:auto minmax(0,1fr)">
+    <div class="cols" style="display:grid;gap:1em">
+      <div class="card"><div class="k">Task</div><p style="color:var(--ink);font-size:1em">Predict the next word</p></div>
+      <div class="card"><div class="k">Steps</div>
+        <div class="row" style="font-size:.9em"><span class="chip on">1 Tokenize</span><span class="chip on">2 Forward</span><span class="chip on">3 Predict P(next)</span><span class="chip tgt">4 Sample</span><span class="chip tgt">5 Detokenize</span></div>
+        <p class="cap" style="margin-top:.4em">Steps 4–5 are inference only.</p></div>
+    </div>
+    <div class="plate"><img src="assets/image9.png" alt="Prompt 'Deep learning is very' goes into the LLM, which outputs a distribution: powerful 43%, innovative 37%, complex 15%, weak 3%, limited 1%. A decoding algorithm picks 'powerful'."></div>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="Autoregressive generation">
+  <div class="head"><p class="eyebrow">Generation</p><h2>Autoregressive Generation</h2>
+  <p class="lede">Each new token is appended to the input and fed back in.</p></div>
+  <div class="body"><div class="plate"><img src="assets/image10.png" alt="An LLM box takes [BOS] A teddy bear is and predicts the next token after each position: A, teddy, bear, is, ?"></div></div>
+</section>
+
+
+
+
+
+<section class="slide" data-section="LLM Basics" data-title="Greedy decoding">
+  <div class="head"><p class="eyebrow">Decoding</p><h2>Predicting the Next Token with Greedy Decoding</h2></div>
+  <div class="body cols-fig">
+    <div class="stack">
+      <div class="card"><div class="k">Approach</div><h3>Greedy selection</h3><p class="math" style="color:var(--ink)">w = argmax P(w | C)</p></div>
+      <ul class="clean"><li>Selects the highest-probability token at each step</li><li>Deterministic output for identical prompts</li><li>Fast &amp; computationally efficient</li><li>Can get stuck in repetitive loops</li></ul>
+    </div>
+    <div class="plate"><img src="assets/image11.png" alt="Transformer diagram next to a probability distribution over words; greedy decoding takes the tallest bar, 'kind'."></div>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="Top-k sampling">
+  <div class="head"><p class="eyebrow">Sampling strategies</p><h2>Top-k Sampling</h2></div>
+  <div class="body cols-fig">
+    <div class="stack">
+      <div class="card"><div class="k">Approach</div><h3>Top-k · k = 4</h3></div>
+      <ul class="clean"><li>Samples among the k most probable tokens</li><li>Truncates the low-probability tail</li><li>Prevents completely off-topic outputs</li><li>Controls randomness &amp; focus</li></ul>
+    </div>
+    <div class="plate"><img src="assets/image12.png" alt="The same distribution with only the top 4 tokens highlighted for sampling."></div>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="Top-p sampling">
+  <div class="head"><p class="eyebrow">Sampling strategies</p><h2>Top-p (Nucleus) Sampling</h2></div>
+  <div class="body cols-fig">
+    <div class="stack">
+      <div class="card"><div class="k">Approach</div><h3>Top-p · p = 90%</h3></div>
+      <ul class="clean"><li>Samples among the smallest set of tokens whose cumulative probability ≥ p</li><li>Set size adapts to how confident the model is</li><li>Avoids the rigid cutoff of top-k</li><li>Also known as nucleus sampling</li></ul>
+    </div>
+    <div class="plate"><img src="assets/image13.png" alt="Top-p: the smallest set of tokens with cumulative probability of at least 90% is highlighted."></div>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="Temperature">
+  <div class="head"><p class="eyebrow">Sampling strategies</p><h2>Temperature Tweaks Output Probabilities</h2></div>
+  <div class="body cols-fig">
+    <div class="stack">
+      <div class="card"><div class="k">Softmax adjustment</div>
+        <p class="math" style="color:var(--ink)">P<sub>adj</sub>(w<sub>i</sub>) = exp(x<sub>i</sub>/T) / Σ<sub>j</sub> exp(x<sub>j</sub>/T)</p></div>
+      <ul class="clean"><li>Divides logits by T before the softmax</li><li><b>Higher T</b> flattens the distribution (more random)</li><li><b>Lower T</b> sharpens the peaks (more confident)</li><li>Keeps the ranking order of tokens</li></ul>
+    </div>
+    <div class="plate"><img src="assets/image14.png" alt="Transformer output passes through a softmax with temperature T."></div>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="Impact of temperature">
+  <div class="head"><p class="eyebrow">Sampling strategies</p><h2>Impact of Temperature on Probabilities</h2></div>
+  <div class="body"><div class="plate"><img src="assets/image15.png" alt="Two distributions over the same words: small T puts nearly all probability on one word, high T spreads it evenly."></div></div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="Try it: decoding playground">
+  <div class="head"><p class="eyebrow">Try it · interactive</p><h2>Decoding Playground</h2></div>
+  <div class="body cols" style="grid-template-columns:1fr 1.15fr">
+    <div class="stack">
+      <div class="seg" role="group" aria-label="Decoding method" id="spMode">
+        <button type="button" data-m="greedy">Greedy</button><button type="button" data-m="topk">Top-k</button><button type="button" data-m="topp" aria-pressed="true">Top-p</button><button type="button" data-m="all">Full sampling</button>
+      </div>
+      <div class="ctrl" id="cT"><label for="spT">Temperature T</label><input id="spT" type="range" min="0.1" max="2" step="0.05" value="1"><output id="spTo">1.00</output></div>
+      <div class="ctrl" id="cK"><label for="spK">k</label><input id="spK" type="range" min="1" max="10" step="1" value="4"><output id="spKo">4</output></div>
+      <div class="ctrl" id="cP"><label for="spP">p</label><input id="spP" type="range" min="0.1" max="1" step="0.05" value="0.9"><output id="spPo">0.90</output></div>
+      <div class="outline" id="spOut" aria-live="polite"></div>
+      <div class="row"><button class="btn" id="spOne" type="button">Sample next token</button><button class="btn ghost" id="spMany" type="button">Sample 100×</button><button class="btn ghost" id="spReset" type="button">Reset</button></div>
+      <p class="cap">Green bar: probability after T and truncation (renormalized). Amber line: share of the last 100 samples.</p>
+    </div>
+    <div class="panel stack" style="gap:.5em">
+      <div class="mono cap">“Deep learning is very ___”</div>
+      <div class="pbars" id="spBars"></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="The alignment gap">
+  <div class="head"><p class="eyebrow">The alignment gap</p><h2>Language Modeling ≠ Assisting Users</h2></div>
+  <div class="body" style="grid-template-rows:minmax(0,1fr) auto">
+    <div class="plate"><img src="assets/image18.png" alt="Prompt: Explain the moon landing to a 6 year old in a few sentences. GPT-3 completion: Explain the theory of gravity to a 6 year old. Explain the theory of relativity... It continues the list instead of answering."></div>
+    <div class="callout amber"><b>Problem:</b> standard language modeling predicts likely continuations, which is not the same as helping the user.</div>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="Alignment">
+  <div class="head"><p class="eyebrow">Task: alignment</p><h2>Aligning LLMs with Human &amp; Designer Intent</h2></div>
+  <div class="body" style="grid-template-rows:auto minmax(0,1fr)">
+    <div class="cols-3" style="display:grid;gap:1em">
+      <div class="card"><div class="k">Goal</div><p>LLM follows user instructions and the designer’s wishes (e.g. moderation)</p></div>
+      <div class="card"><div class="k">Challenge</div><p>Data of desired behavior is what we want but scarce and expensive. Pretraining data scales easily but isn’t what we want.</p></div>
+      <div class="card" style="background:var(--accent-soft)"><div class="k">Key idea</div><p style="color:var(--ink)">Fine-tune the pretrained LLM on a little desired data ⇒ <b>post-training</b></p></div>
+    </div>
+    <div class="plate"><img src="assets/image19.png" alt="Two chat screenshots: the aligned model answers a training question helpfully and declines a hateful request."></div>
+  </div>
+</section>
+
+<section class="slide" data-section="LLM Basics" data-title="Supervised fine-tuning">
+  <div class="head"><p class="eyebrow">Method: SFT</p><h2>Supervised Fine-Tuning (SFT)</h2></div>
+  <div class="body cols-fig">
+    <div class="stack">
+      <div class="card"><div class="k">Core idea</div><p style="color:var(--ink)">Fine-tune the LLM with language modeling on the desired answers</p></div>
+      <div class="card"><div class="k">Data collection</div><p style="color:var(--ink)">Ask humans to write prompt &amp; response demonstrations</p></div>
+      <div class="callout">This was the key step from GPT-3 to ChatGPT.</div>
+    </div>
+    <div class="plate"><img src="assets/image20.png" alt="Examples of human-written prompt and response pairs from the OpenAssistant dataset (Köpf et al., 2023)."></div>
+  </div>
+</section>
+
+<!-- ===================== RAG ===================== -->
+<section class="slide divider" data-section="RAG" data-title="Topic: RAG">
+  <p class="eyebrow">Topic overview · Part 2</p>
+  <h2>Retrieval-Augmented Generation (RAG)</h2>
+  <p class="lede">Give the model the right facts at question time instead of hoping it memorized them.</p>
+  <div class="agenda"><span>LLM Basics</span><span class="now">RAG</span><span>Tool Calling &amp; MCP</span><span>AI Agents</span></div>
+</section>
+
+<section class="slide" data-section="RAG" data-title="Motivation: pretraining cutoff">
+  <div class="head"><p class="eyebrow">Motivation · 1 of 4</p><h2>Knowledge is Limited to Pretraining Data</h2></div>
+  <div class="body"><div class="plate"><img src="assets/image21.png" alt="GPT-5 model card with the knowledge cutoff date, Sep 30 2024, highlighted."></div></div>
+</section>
+<section class="slide" data-section="RAG" data-title="Motivation: context size">
+  <div class="head"><p class="eyebrow">Motivation · 2 of 4</p><h2>Limited Context Size</h2></div>
+  <div class="body"><div class="plate"><img src="assets/image22.png" alt="GPT-5 model card with the 400,000-token context window highlighted."></div></div>
+</section>
+<section class="slide" data-section="RAG" data-title="Motivation: distraction">
+  <div class="head"><p class="eyebrow">Motivation · 3 of 4</p><h2>LLMs Get Distracted by Useless Information</h2></div>
+  <div class="body"><div class="plate"><img src="assets/image23.png" alt="Needle-in-a-haystack heatmap for GPT-4 128K: retrieval accuracy drops as context length grows and depending on where the fact is placed."></div></div>
+</section>
+<section class="slide" data-section="RAG" data-title="Motivation: pricing">
+  <div class="head"><p class="eyebrow">Motivation · 4 of 4</p><h2>Pricing is per Input/Output Token</h2></div>
+  <div class="body"><div class="plate"><img src="assets/image24.png" alt="GPT-5 model card with the price, $1.25 input and $10 output per million tokens, highlighted."></div></div>
+</section>
+
+<section class="slide" data-section="RAG" data-title="Retrieve, augment, generate" data-steps="2">
+  <div class="head"><p class="eyebrow">Retrieve · Augment · Generate</p><h2>How RAG Answers a Question</h2></div>
+  <div class="body" style="grid-template-rows:repeat(3, auto);align-content:center;gap:1.1em">
+    <div class="ex-row"><span class="n">1</span>
+      <div class="stack" style="gap:.4em"><b>Retrieve</b> relevant documents with a similarity search over the knowledge base
+        <div class="flow"><span class="node">User prompt</span><span class="arrow">→ similarity ←</span><span class="node kb">Knowledge base</span><span class="arrow">→</span><span class="node kb mono">retrieved info</span></div></div></div>
+    <div class="ex-row" data-step="1"><span class="n">2</span>
+      <div class="stack" style="gap:.4em"><b>Augment</b> the prompt with the retrieved information
+        <div class="flow"><span class="node kb mono">retrieved info</span><span class="arrow">+</span><span class="node">User prompt</span></div></div></div>
+    <div class="ex-row" data-step="2"><span class="n">3</span>
+      <div class="stack" style="gap:.4em"><b>Generate</b> the response
+        <div class="flow"><span class="node kb mono">retrieved info + user prompt</span><span class="arrow">→</span><span class="node llm">LLM</span><span class="arrow">→</span><span class="node">Response</span></div></div></div>
+  </div>
+</section>
+
+<section class="slide" data-section="RAG" data-title="Create the knowledge base">
+  <div class="head"><p class="eyebrow">Prerequisite</p><h2>Create the Knowledge Base</h2></div>
+  <div class="body" style="grid-template-rows:minmax(0,1fr) auto">
+    <div class="cols-3" style="display:grid;gap:1em;min-height:0">
+      <div class="plate"><img src="assets/image29.png" alt="Collect: a stack of documents."></div>
+      <div class="plate"><img src="assets/image30.png" alt="Divide: each document is split into chunks."></div>
+      <div class="plate"><img src="assets/image31.png" alt="Embed: each chunk becomes a vector such as 0.48, 0.33, …, -0.51."></div>
+    </div>
+    <div class="row"><span class="cap mono">HYPERPARAMETERS</span><span class="chip">embedding size</span><span class="chip">chunk size</span><span class="chip">overlap between chunks</span></div>
+  </div>
+</section>
+
+<section class="slide" data-section="RAG" data-title="Try it: chunking">
+  <div class="head"><p class="eyebrow">Try it · interactive</p><h2>Chunk Size &amp; Overlap</h2>
+    <p class="lede">The same splitter as notebook [1]: a chunk ends at a space, so it never cuts a word. Amber text is shared with the previous chunk.</p></div>
+  <div class="body" style="grid-template-columns:16em 1fr">
+    <div class="stack">
+      <div class="ctrl" style="grid-template-columns:5em 1fr 2.6em"><label for="ckS">Size</label><input id="ckS" type="range" min="80" max="400" step="10" value="200"><output id="ckSo">200</output></div>
+      <div class="ctrl" style="grid-template-columns:5em 1fr 2.6em"><label for="ckO">Overlap</label><input id="ckO" type="range" min="0" max="150" step="5" value="40"><output id="ckOo">40</output></div>
+      <div class="metric"><div class="name">Chunks</div><div class="val" id="ckN">0</div><div class="f" id="ckF"></div></div>
+      <p class="cap">Workshop notebook [1] uses size 1000 and overlap 200 characters.</p>
+    </div>
+    <div class="chunks" id="ckOut"></div>
+  </div>
+</section>
+
+<section class="slide" data-section="RAG" data-title="Candidate retrieval">
+  <div class="head"><p class="eyebrow">Retrieval · Step 1</p><h2>Candidate Retrieval</h2>
+  <p class="lede">Objective: select potentially relevant candidates from the knowledge base.</p></div>
+  <div class="body cols">
+    <div class="card"><div class="k">Maximize recall</div><p style="color:var(--ink)">Make sure the retrieval step captures every potentially relevant chunk, so no critical information is missed before scoring.</p></div>
+    <div class="card"><div class="k">Retrieval methods</div><ul class="clean"><li><b>Semantic embeddings:</b> dense vector similarity search</li><li><b>Keyword-based:</b> optional sparse lexical matching</li></ul></div>
+  </div>
+</section>
+
+<section class="slide" data-section="RAG" data-title="Retrieval overview">
+  <div class="head"><p class="eyebrow">Retrieval</p><h2>Retrieval Overview</h2></div>
+  <div class="body fit" style="grid-template-columns:1fr auto 1fr">
+    <div class="card" style="display:grid;gap:.5em;align-content:start"><div class="k">Step 1</div><h3 style="font-size:1.4em">Candidate retrieval</h3><ul class="clean"><li>Select potentially relevant candidates</li><li>Maximize <b>recall</b></li><li>Semantic embeddings &amp; optional keywords</li></ul></div>
+    <div style="display:grid;place-items:center;font-size:2em;color:var(--accent)">→</div>
+    <div class="card" style="display:grid;gap:.5em;align-content:start" data-step="1"><div class="k">Step 2</div><h3 style="font-size:1.4em">Ranking</h3><ul class="clean"><li>Final relevance score to prioritize top context</li><li>Maximize <b>precision</b></li><li>Re-rank a smaller set of candidates</li></ul></div>
+  </div>
+</section>
+
+<section class="slide" data-section="RAG" data-title="Semantic similarity">
+  <div class="head"><p class="eyebrow">Step 1 · Candidate retrieval</p><h2>Method 1: Embedding Similarity</h2></div>
+  <div class="body"><div class="plate"><img src="assets/image32.png" alt="The query and a chunk are each embedded into vectors; a similarity operation gives a similarity score."></div></div>
+</section>
+<section class="slide" data-section="RAG" data-title="Semantic search">
+  <div class="head"><p class="eyebrow">Step 1 · Candidate retrieval</p><h2>Method 1: Semantic Search</h2></div>
+  <div class="body"><div class="plate"><img src="assets/image33.png" alt="Query 'Where is Cuddly?' matches by meaning: 'Huggy likes to work downtown' and 'Where is Paris located?' score highest."></div></div>
+</section>
+<section class="slide" data-section="RAG" data-title="Keyword search (BM25)">
+  <div class="head"><p class="eyebrow">Step 1 · Candidate retrieval</p><h2>Method 2: Keyword Search with BM25</h2></div>
+  <div class="body"><div class="plate"><img src="assets/image34.png" alt="Query 'Where is Cuddly?' matches by keyword: 'he was in a cuddly mood' and 'Cuddly spends most days surrounded by books' score highest."></div></div>
+</section>
+<section class="slide" data-section="RAG" data-title="Hybrid search">
+  <div class="head"><p class="eyebrow">Step 1 · Candidate retrieval</p><h2>Method 3: Hybrid of Semantics &amp; BM25</h2></div>
+  <div class="body"><div class="plate"><img src="assets/image35.png" alt="Hybrid search picks 'Cuddly spends most days surrounded by books' as the best match."></div></div>
+</section>
+<section class="slide" data-section="RAG" data-title="Re-ranking">
+  <div class="head"><p class="eyebrow">Step 2 · Ranking</p><h2>Re-ranking</h2><p class="lede">Give a final relevance score with a more sophisticated (re-)ranker.</p></div>
+  <div class="body"><div class="plate"><img src="assets/image36.png" alt="Candidate chunks d, b, a, c go through a re-ranker with the user prompt and come out ordered a, b, c, d."></div></div>
+</section>
+<section class="slide" data-section="RAG" data-title="Evaluating retrieval">
+  <div class="head"><p class="eyebrow">Evaluation</p><h2>Quantify Retrieval Performance</h2><p class="lede">Setup: check whether the retrieved top-k chunks are relevant.</p></div>
+  <div class="body"><div class="plate"><img src="assets/image37.png" alt="A grid of chunks with the top k selected; some chunks are marked relevant."></div></div>
+</section>
+
+<section class="slide" data-section="RAG" data-title="Try it: retrieval metrics">
+  <div class="head"><p class="eyebrow">Try it · interactive</p><h2>Retrieval Metrics at k</h2>
+    <p class="lede">Query: <b>“Where is Cuddly?”</b> Click a result to mark it relevant, then move k.</p></div>
+  <div class="body cols" style="grid-template-columns:1.1fr 1fr">
+    <div class="stack">
+      <div class="ranklist" id="rmList"></div>
+      <div class="ctrl" style="grid-template-columns:8em 1fr 2.5em"><label for="rmK">k</label><input id="rmK" type="range" min="1" max="8" value="5"><output id="rmKo">5</output></div>
+      <div class="ctrl" style="grid-template-columns:8em 1fr 2.5em"><label for="rmT">Relevant in KB</label><input id="rmT" type="range" min="1" max="8" value="3"><output id="rmTo">3</output></div>
+    </div>
+    <div class="metrics" id="rmOut" style="align-content:start"></div>
+  </div>
+</section>
+
+<!-- ===================== TOOLS & MCP ===================== -->
+<section class="slide divider" data-section="Tools & MCP" data-title="Topic: Tool calling & MCP">
+  <p class="eyebrow">Topic overview · Part 3</p>
+  <h2>Tool Calling &amp; MCP</h2>
+  <p class="lede">Let the model call functions, then connect tools to any model with one protocol.</p>
+  <div class="agenda"><span>LLM Basics</span><span>RAG</span><span class="now">Tool Calling &amp; MCP</span><span>AI Agents</span></div>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="Overview of tool calling">
+  <div class="head"><p class="eyebrow">Extending LLM capabilities</p><h2>Overview of Tool Calling</h2><p class="lede">Let LLMs interact with external systems, APIs and data sources.</p></div>
+  <div class="body cols-3">
+    <div class="card"><div class="k">1 · Schema definition</div><p style="color:var(--ink)">Developers define clear JSON schemas for external functions, endpoints and tools.</p></div>
+    <div class="card" data-step="1"><div class="k">2 · Model decision</div><p style="color:var(--ink)">The LLM evaluates user intent and chooses which tool to call, with which arguments.</p></div>
+    <div class="card" data-step="2"><div class="k">3 · Execution &amp; response</div><p style="color:var(--ink)">The system runs the call and feeds the output back to the LLM to finish the request.</p></div>
+  </div>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="Definition of tool calling">
+  <div class="head"><p class="eyebrow">Extending LLM capabilities</p><h2>Definition of Tool Calling</h2></div>
+  <div class="body" style="align-content:center">
+    <blockquote style="margin:0;font-family:var(--display);font-size:2em;line-height:1.25;max-width:24em;font-weight:500">“Tool calling […] allows autonomous systems to complete complex tasks by dynamically accessing and [may act] upon external resources.”</blockquote>
+  </div>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="Without vs. with tools">
+  <div class="head"><p class="eyebrow">Real-life example</p><h2>Without vs. With Tools</h2></div>
+  <div class="body cols" style="align-content:center">
+    <div class="card stack"><div class="k">LLM as we’ve known it so far</div>
+      <div class="flow"><span class="node">What’s the weather in Phnom Penh?</span><span class="arrow">→</span><span class="node llm">LLM</span></div>
+      <div class="node mono" style="border-color:var(--rose)">Sorry, I don’t have live weather data.</div></div>
+    <div class="card stack" data-step="1"><div class="k">LLM with tools</div>
+      <div class="flow"><span class="node mono">get_weather(city)<br>What’s the weather in Phnom Penh?</span><span class="arrow">→</span><span class="node llm">LLM</span></div>
+      <div class="node mono" style="border-color:var(--accent)">It’s 32°C and sunny in Phnom Penh.</div></div>
+  </div>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="get_weather tool">
+  <div class="head"><p class="eyebrow">Real-life example</p><h2>The Tool: <code style="font-size:.85em">get_weather</code></h2>
+  <p class="lede">A normal Python function, plus a short description the model can read.</p></div>
+  <div class="body cols" style="align-content:center">
+    <div class="stack"><span class="cap mono">THE CODE YOU WRITE</span>
+      <div class="codebox">import requests
+
+def get_weather(city: str) -> dict:
+    """Get the current weather for a city."""
+    url = "https://api.example.com/weather"
+    response = requests.get(url, params={"city": city})
+    return response.json()
+
+# {"temp_c": 32, "condition": "sunny"}</div></div>
+    <div class="stack" data-step="1"><span class="cap mono">WHAT THE MODEL SEES (JSON SCHEMA)</span>
+      <div class="codebox">{
+  "name": "get_weather",
+  "description": "Get the current weather for a city.",
+  "parameters": {
+    "type": "object",
+    "properties": { "city": { "type": "string" } },
+    "required": ["city"]
+  }
+}</div></div>
+  </div>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="How function calling works" data-steps="2">
+  <div class="head"><p class="eyebrow">Extending LLM capabilities</p><h2>How Function Calling Works</h2></div>
+  <div class="body" style="grid-template-rows:repeat(3,auto);align-content:center;gap:1.1em">
+    <div class="ex-row"><span class="n">1</span><div class="stack" style="gap:.4em"><b>LLM picks the function and its arguments</b>
+      <div class="flow"><span class="node mono">get_weather(city)<br>What’s the weather in Phnom Penh?</span><span class="arrow">→</span><span class="node llm">LLM</span><span class="arrow">→</span><span class="node mono">get_weather(city="Phnom Penh")</span></div></div></div>
+    <div class="ex-row" data-step="1"><span class="n">2</span><div class="stack" style="gap:.4em"><b>Your code runs the function</b>
+      <div class="flow"><span class="node mono">get_weather("Phnom Penh")</span><span class="arrow">→</span><span class="node kb">Weather API</span><span class="arrow">→</span><span class="node mono">{"temp_c": 32, "condition": "sunny"}</span></div></div></div>
+    <div class="ex-row" data-step="2"><span class="n">3</span><div class="stack" style="gap:.4em"><b>LLM writes the answer from the result</b>
+      <div class="flow"><span class="node mono">{"temp_c": 32, "condition": "sunny"}</span><span class="arrow">→</span><span class="node llm">LLM</span><span class="arrow">→</span><span class="node">It’s 32°C and sunny in Phnom Penh.</span></div></div></div>
+  </div>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="Teach tool use: training">
+  <div class="head"><p class="eyebrow">Teach a model to use a tool</p><h2>Method 1: via Training</h2></div>
+  <div class="body cols" style="align-content:center">
+    <div class="card stack"><div class="k">Tool prediction</div>
+      <div class="flow"><span class="node mono">get_weather(city)<br>What’s the weather in Phnom Penh?</span><span class="arrow">→</span><span class="node mono" style="border-color:var(--amber);background:var(--amber-soft)">get_weather(city="Phnom Penh")</span></div>
+      <p class="cap">Left: conversation so far · Right: desired prediction</p></div>
+    <div class="card stack"><div class="k">Response generation</div>
+      <div class="flow"><span class="node mono">… + tool result<br>{"temp_c": 32, …}</span><span class="arrow">→</span><span class="node mono" style="border-color:var(--amber);background:var(--amber-soft)">It’s 32°C and sunny.</span></div>
+      <p class="cap">Train on both steps with the usual next-token loss.</p></div>
+  </div>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="Teach tool use: prompting">
+  <div class="head"><p class="eyebrow">Teach a model to use a tool</p><h2>Method 2: via Prompting</h2></div>
+  <div class="body cols" style="align-content:center">
+    <div class="flow" style="flex-direction:column;align-items:stretch">
+      <span class="node mono">get_weather(city)</span><span class="arrow" style="text-align:center">+</span>
+      <span class="node mono" style="border-color:var(--amber);background:var(--amber-soft)">&lt;how and when to use it&gt;</span><span class="arrow" style="text-align:center">+</span>
+      <span class="node mono">What’s the weather in Phnom Penh?</span>
+    </div>
+    <div class="stack" data-step="1">
+      <p style="font-family:var(--display);font-size:1.5em;font-weight:700">How do you write such a description?</p>
+      <div class="codebox">def get_weather(city: str) -> dict:
+    """Get the current weather for a city.
+
+    Use this when the user asks about weather,
+    temperature or rain.
+
+    Args:
+        city: The city name, e.g. "Phnom Penh".
+    """</div>
+      <p class="cap">The docstring and type hints become the tool’s schema. That is how the MCP server in notebook [2] describes <code>search_documents</code>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="Common use cases">
+  <div class="head"><p class="eyebrow">Extending LLM capabilities</p><h2>Examples of Common Use Cases</h2></div>
+  <div class="body cols-3">
+    <div class="card"><div class="k">Information</div><ul class="clean"><li>Web / database search</li><li>Weather, stocks and other trackers</li><li>Codebase analysis</li></ul></div>
+    <div class="card"><div class="k">Computation</div><ul class="clean"><li>Calculator</li><li>Code execution (often Python)</li></ul></div>
+    <div class="card"><div class="k">Action</div><ul class="clean"><li>Send emails / messages</li><li>In-computer actions</li><li>Assistant domain tasks</li></ul></div>
+  </div>
+  <p class="muted" style="margin-bottom:2em">…and many more!</p>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="In practice: many tools">
+  <div class="head"><p class="eyebrow">In practice</p><h2>Many Tools</h2><p class="lede">A real assistant has a whole toolbox, not one function.</p></div>
+  <div class="body cols-3" style="grid-template-rows:minmax(0,1fr);align-items:stretch">
+    <div class="card stack" style="gap:1em"><div class="k">Information</div>
+      <div class="tool"><code>get_weather(city)</code><p>Current temperature and conditions</p><span class="mono cap">“Is it raining in Siem Reap?”</span></div>
+      <div class="tool"><code>search_web(query)</code><p>Fresh facts beyond the knowledge cutoff</p><span class="mono cap">“Who won yesterday’s match?”</span></div>
+    </div>
+    <div class="card stack" style="gap:1em"><div class="k">Computation</div>
+      <div class="tool"><code>calculate(expression)</code><p>Exact math instead of guessing</p><span class="mono cap">“What is 18% of 2,450?”</span></div>
+      <div class="tool"><code>convert_currency(amount, to)</code><p>Live exchange rates</p><span class="mono cap">“100 USD in riel?”</span></div>
+    </div>
+    <div class="card stack" style="gap:1em"><div class="k">Action</div>
+      <div class="tool"><code>send_email(to, subject, body)</code><p>Do something in the real world</p><span class="mono cap">“Email the report to my team.”</span></div>
+      <div class="tool"><code>create_event(title, time)</code><p>Change your calendar</p><span class="mono cap">“Book a meeting Friday 9 AM.”</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="In practice: list of tools">
+  <div class="head"><p class="eyebrow">In practice</p><h2>The Model Gets a List of Function APIs</h2></div>
+  <div class="body" style="grid-template-rows:auto auto;align-content:center;gap:1.4em">
+    <div class="card stack" style="opacity:.55"><div class="k">Before · one tool</div>
+      <div class="flow"><span class="node mono" style="text-decoration:line-through">get_weather(city)<br>What’s the weather in Phnom Penh?</span><span class="arrow">→</span><span class="node llm">LLM</span><span class="arrow">→</span><span class="node mono">get_weather(city="Phnom Penh")</span></div></div>
+    <div class="card stack" data-step="1"><div class="k">Now · a list of tools</div>
+      <div class="flow"><span class="node mono">[get_weather, get_time, search_web, …]<br>What’s the weather in Phnom Penh?</span><span class="arrow">→</span><span class="node llm">LLM</span><span class="arrow">→</span><span class="node mono" style="border-color:var(--accent)">get_weather(city="Phnom Penh")</span></div>
+      <p class="cap">The model must first choose the right tool, then fill in its arguments.</p></div>
+  </div>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="Tools: benefits">
+  <div class="head"><p class="eyebrow">Tools summary</p><h2>Benefits</h2></div>
+  <div class="body cols-3">
+    <div class="card"><div class="k" style="color:var(--accent)">Enhanced utility</div><p style="color:var(--ink)">LLMs become far more useful by working with specialized tools and software workflows.</p></div>
+    <div class="card"><div class="k">Real-world actions</div><p style="color:var(--ink)">They can act in the real world through APIs, running functions with side effects.</p></div>
+    <div class="card"><div class="k">Bypass cutoffs</div><p style="color:var(--ink)">Live, up-to-date data on demand overcomes the static knowledge cutoff.</p></div>
+  </div>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="Tools: challenges">
+  <div class="head"><p class="eyebrow" style="color:var(--rose)">Tools summary</p><h2>Challenges</h2></div>
+  <div class="body cols-3">
+    <div class="card"><div class="k" style="color:var(--rose)">Reduced performance</div><p style="color:var(--ink)">More tools means a larger search space, so the model chooses less accurately.</p></div>
+    <div class="card"><div class="k" style="color:var(--rose)">Context limits</div><p style="color:var(--ink)">Dozens or hundreds of schema definitions don’t scale inside a finite context.</p></div>
+    <div class="card"><div class="k" style="color:var(--rose)">High overhead</div><p style="color:var(--ink)">Many tools to define, build, test and maintain as custom integration code.</p></div>
+  </div>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="Why a standard protocol: MCP">
+  <div class="head"><p class="eyebrow">Standardization</p><h2 id="mcpTitle">Goal: Avoid Duplicating Tool Integrations</h2></div>
+  <div class="body" style="grid-template-columns:1fr 15em">
+    <div class="svgwrap"><svg id="mcpSvg" viewBox="0 0 760 340" role="img" aria-label="Connections between LLM applications and tools"></svg></div>
+    <div class="stack">
+      <div class="seg" role="group" aria-label="Integration style" id="mcpMode"><button type="button" data-m="p2p" aria-pressed="true">Without MCP</button><button type="button" data-m="mcp">With MCP</button></div>
+      <div class="row"><button class="btn ghost" id="mcpAddL" type="button">+ LLM</button><button class="btn ghost" id="mcpAddT" type="button">+ Tool</button><button class="btn ghost" id="mcpRst" type="button">Reset</button></div>
+      <div class="metric"><div class="name">Integrations to build</div><div class="val" id="mcpN">9</div><div class="f" id="mcpF">N × M</div></div>
+      <p class="cap" id="mcpTxt"></p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-section="Tools & MCP" data-title="MCP request flow">
+  <div class="head"><p class="eyebrow">Standardization: MCP</p><h2>Example: MCP Client–Server Request Flow</h2>
+  <p class="lede">User query: “Recommend a new poetry book to my teddy bear”</p></div>
+  <div class="body" style="grid-template-columns:1fr auto 1.3fr;align-items:center">
+    <div class="card stack" style="align-items:center;text-align:center"><div class="k">Host</div><b>Claude Desktop</b><span class="node llm">MCP Client</span></div>
+    <div class="stack" style="align-items:center;color:var(--muted)"><span class="mono cap">request →</span><span class="mono cap">← result</span></div>
+    <div class="card stack"><div class="k">Book Provider · MCP Server</div>
+      <div class="cols" style="display:grid;gap:.6em"><div class="stack" style="gap:.4em"><span class="cap mono">TOOLS</span><span class="node mono">find_title</span><span class="node mono">recommend_taste</span></div>
+      <div class="stack" style="gap:.4em"><span class="cap mono">DATA</span><span class="node kb">Personal collection</span><span class="node kb">Top books</span></div></div></div>
+  </div>
+</section>
+
+<!-- ===================== AGENTS ===================== -->
+<section class="slide divider" data-section="AI Agents" data-title="Topic: AI agents">
+  <p class="eyebrow">Topic overview · Part 4</p>
+  <h2>AI Agents</h2>
+  <p class="lede">Autonomous systems that perceive, reason, decide and take action.</p>
+  <div class="agenda"><span>LLM Basics</span><span>RAG</span><span>Tool Calling &amp; MCP</span><span class="now">AI Agents</span></div>
+</section>
+
+<section class="slide" data-section="AI Agents" data-title="Agent building blocks">
+  <div class="head"><p class="eyebrow">Section overview</p><h2>Perception, Reasoning, Execution</h2></div>
+  <div class="body cols-3">
+    <div class="card"><div class="k">1 · Perception</div><p style="color:var(--ink)">Receives the environment state, user prompts, memory and multi-modal observations.</p></div>
+    <div class="card"><div class="k">2 · Reasoning</div><p style="color:var(--ink)">Breaks goals into sub-tasks, weighs choices and makes a step-by-step plan.</p></div>
+    <div class="card"><div class="k">3 · Execution</div><p style="color:var(--ink)">Acts through external tools, APIs, code environments and MCP servers.</p></div>
+  </div>
+</section>
+
+<section class="slide" data-section="AI Agents" data-title="What is an agent">
+  <div class="head"><p class="eyebrow">Agents</p></div>
+  <div class="body" style="align-content:center">
+    <blockquote style="margin:0;font-family:var(--display);font-size:2.4em;line-height:1.2;max-width:20em;font-weight:500">“An <b style="color:var(--accent)">agent</b> is a system that autonomously pursues goals and completes tasks on a user’s behalf.”</blockquote>
+  </div>
+</section>
+
+<section class="slide" data-section="AI Agents" data-title="Evolution of LLM paradigms" data-steps="2">
+  <div class="head"><p class="eyebrow">High-level idea</p><h2>Evolution of LLM Paradigms</h2><p class="lede">From single-shot prompting to autonomous agent loops.</p></div>
+  <div class="body" style="grid-template-rows:repeat(3,auto);align-content:center;gap:1em">
+    <div class="card" style="display:grid;grid-template-columns:12em 1fr;gap:1em;align-items:center"><div><div class="k">1 · Direct prompting</div><span class="cap">Single shot</span></div>
+      <div class="flow"><span class="node">Question</span><span class="arrow">→</span><span class="node llm">LLM</span><span class="arrow">→</span><span class="node">Answer</span></div></div>
+    <div class="card" style="display:grid;grid-template-columns:12em 1fr;gap:1em;align-items:center" data-step="1"><div><div class="k">2 · Tool-augmented</div><span class="cap">Sequential RAG &amp; tools</span></div>
+      <div class="flow"><span class="node">Question</span><span class="arrow">→</span><span class="node llm">LLM</span><span class="arrow">→</span><span class="node kb">Calls / tools</span><span class="arrow">→</span><span class="node llm">LLM</span><span class="arrow">→</span><span class="node">Answer</span></div></div>
+    <div class="card" style="display:grid;grid-template-columns:12em 1fr;gap:1em;align-items:center" data-step="2"><div><div class="k">3 · Autonomous agent</div><span class="cap">Dynamic loop &amp; reasoning</span></div>
+      <div class="flow"><span class="node">Question</span><span class="arrow">→</span><span class="node llm">LLM</span><span class="arrow">⇄</span><span class="node kb">Calls / tools</span><span class="arrow">⇄ ••• ⇄</span><span class="node llm">LLM</span><span class="arrow">→</span><span class="node">Answer</span></div></div>
+  </div>
+</section>
+
+<section class="slide" data-section="AI Agents" data-title="ReAct overview">
+  <div class="head"><p class="eyebrow">Overview</p><h2>ReAct = Reason + Act</h2><p class="lede">Combine reasoning and acting in language models to solve complex tasks.</p></div>
+  <div class="body" style="align-content:center">
+    <div class="svgwrap"><svg viewBox="0 0 760 230" role="img" aria-label="ReAct loop: Input, then Observe, Plan and Act in a loop, then Output">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker></defs>
+      <g style="stroke:var(--muted);stroke-width:2;fill:none" marker-end="url(#ah)">
+        <path d="M150 115 H232" marker-end="url(#ah)"/><path d="M342 95 Q380 30 418 95" marker-end="url(#ah)"/>
+        <path d="M470 140 Q380 210 300 140" marker-end="url(#ah)"/><path d="M530 115 H612" marker-end="url(#ah)"/>
+      </g>
+      <g style="font-size:20px;font-weight:600">
+        <rect x="40" y="90" width="110" height="50" rx="10" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5;stroke-dasharray:6 4"/><text x="95" y="122" text-anchor="middle" style="fill:var(--ink)">Input</text>
+        <rect x="235" y="90" width="110" height="50" rx="10" style="fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5"/><text x="290" y="122" text-anchor="middle" style="fill:var(--ink)">Observe</text>
+        <rect x="420" y="90" width="110" height="50" rx="10" style="fill:var(--accent-soft);stroke:var(--accent);stroke-width:1.5"/><text x="475" y="122" text-anchor="middle" style="fill:var(--ink)">Plan</text>
+        <rect x="615" y="90" width="110" height="50" rx="10" style="fill:var(--surface);stroke:var(--ink);stroke-width:1.5;stroke-dasharray:6 4"/><text x="670" y="122" text-anchor="middle" style="fill:var(--ink)">Output</text>
+        <text x="380" y="40" text-anchor="middle" style="fill:var(--muted);font-size:15px;font-weight:400">reason</text>
+        <rect x="335" y="160" width="90" height="44" rx="10" style="fill:var(--amber-soft);stroke:var(--amber);stroke-width:1.5"/><text x="380" y="189" text-anchor="middle" style="fill:var(--ink)">Act</text>
+      </g>
+    </svg></div>
+  </div>
+</section>
+
+<section class="slide" data-section="AI Agents" data-title="ReAct in action" data-steps="7">
+  <div class="head"><p class="eyebrow">ReAct in action · use → or the buttons</p><h2 id="raTitle">Input</h2></div>
+  <div class="body react-grid">
+    <div class="stack">
+      <div class="svgwrap" style="flex:1"><svg id="raSvg" viewBox="0 0 560 300" role="img" aria-label="ReAct loop with the current step highlighted"></svg></div>
+      <div class="callout" id="raNote"></div>
+      <div class="row"><button class="btn ghost" id="raPrev" type="button">◀ Back</button><button class="btn" id="raNext" type="button">Next step ▶</button></div>
+    </div>
+    <div class="panel stack"><div class="mono cap">AGENT TRACE</div><div class="trace" id="raTrace"></div></div>
+  </div>
+</section>
+
+<section class="slide" data-section="AI Agents" data-title="Agentic view">
+  <div class="head"><p class="eyebrow">Agentic architecture</p><h2>The “Agentic” View</h2></div>
+  <div class="body" style="grid-template-columns:1fr auto 1.1fr auto 1fr;align-items:center;gap:.8em">
+    <div class="card"><div class="k">Input</div><p style="color:var(--ink)">“Should I bring an umbrella today?”</p></div>
+    <span class="arrow" style="font-size:1.6em">→</span>
+    <div class="card" style="background:var(--accent-soft)"><div class="k">Reasoning core</div><h3>Weather Assistant Agent</h3><ul class="clean" style="font-size:.9em"><li>Interprets user intent</li><li>Looks up location &amp; forecast</li><li>Decides and gives advice</li></ul></div>
+    <span class="arrow" style="font-size:1.6em">→</span>
+    <div class="card"><div class="k">Output</div><p style="color:var(--ink)">Yes, bring an umbrella. There’s an 80% chance of rain this afternoon.</p></div>
+  </div>
+</section>
+
+<section class="slide" data-section="AI Agents" data-title="Agents in daily life: coding">
+  <div class="head"><p class="eyebrow">AI agents in your daily life</p><h2>Personal Favorite Use Case: Coding!</h2></div>
+  <div class="body"><div class="plate" style="background:#111"><img src="assets/image69.png" alt="A code editor with find_teddy_bear.py open and a coding agent panel on the right reviewing it and listing issues found."></div></div>
+</section>
+
+<section class="slide" data-section="Wrap-up" data-title="Hands-on: Workshop 2 project">
+  <div class="head"><p class="eyebrow">Real practice</p><h2>Hands-on: Chat with Your Documents</h2>
+  <p class="lede">Everything from today in four notebooks: RAG, an MCP tool, a chat UI and a Telegram agent.</p></div>
+  <div class="body fit" style="grid-template-columns:repeat(4,1fr)">
+    <div class="card"><div class="k">[1] Ingestion</div><p style="color:var(--ink)">Read PDFs (with OCR), chunk, embed, store in <b>Chroma Cloud</b>.</p><p class="cap" style="margin-top:.5em">→ RAG prerequisite</p></div>
+    <div class="card"><div class="k">[2] MCP server</div><p style="color:var(--ink)"><code>search_documents</code> tool, deployed on <b>Modal</b>, usable from Claude.</p><p class="cap" style="margin-top:.5em">→ Tools &amp; MCP</p></div>
+    <div class="card"><div class="k">[3] Chat UI</div><p style="color:var(--ink)"><b>Gradio</b> + Gemini with knowledge-base and web-search toggles.</p><p class="cap" style="margin-top:.5em">→ Tool calling loop</p></div>
+    <div class="card"><div class="k">[4] Telegram bot</div><p style="color:var(--ink)">The same agent on Telegram, served by a Modal webhook.</p><p class="cap" style="margin-top:.5em">→ Agents in production</p></div>
+  </div>
+</section>
+
+<section class="slide divider" data-section="Wrap-up" data-title="Thank you">
+  <p class="eyebrow">LLM &amp; AI Agents</p>
+  <h2>Thank You!</h2>
+  <p class="lede">Questions &amp; discussion</p>
+</section>
+
+</div>
+</main>
+
+<div class="bottombar">
+  <button class="nav" id="prevBtn" type="button" aria-label="Previous">←</button>
+  <div class="progress"><i id="prog"></i></div>
+  <span class="count" id="count"></span>
+  <button class="nav" id="nextBtn" type="button" aria-label="Next">→</button>
+  <span class="hint">← → keys · O overview</span>
+</div>
+
+<div class="overview" id="overview" hidden>
+  <header><h2>All slides</h2><div class="spacer"></div><button class="tbtn" id="ovClose" type="button">Close (Esc)</button></header>
+  <div id="ovBody"></div>
+</div>
+
+<script>
+(() => {
+  const deck = document.getElementById('deck');
+  const slides = [...deck.querySelectorAll('.slide')];
+  const narrow = matchMedia('(max-width: 760px)');
+  let cur = 0;
+  const steps = slides.map(() => 0);
+
+  slides.forEach((s, i) => {
+    const max = Math.max(+(s.dataset.steps || 0), ...[...s.querySelectorAll('[data-step]')].map(e => +e.dataset.step));
+    s.dataset.max = max;
+    s.id = 's' + (i + 1);
+    const pg = document.createElement('span'); pg.className = 'pg'; pg.textContent = i + 1; s.appendChild(pg);
+  });
+
+  function applyStep(i) {
+    const s = slides[i];
+    s.querySelectorAll('[data-step]').forEach(e => e.classList.toggle('shown', +e.dataset.step <= steps[i]));
+    s.dispatchEvent(new CustomEvent('step', { detail: steps[i] }));
+  }
+  function show(i, step) {
+    cur = Math.max(0, Math.min(slides.length - 1, i));
+    if (step !== undefined) steps[cur] = step;
+    slides.forEach((s, j) => s.classList.toggle('active', j === cur));
+    applyStep(cur);
+    document.getElementById('count').textContent = (cur + 1) + ' / ' + slides.length;
+    document.getElementById('prog').style.width = ((cur + 1) / slides.length * 100) + '%';
+    document.getElementById('crumb').textContent = slides[cur].dataset.section + ' · ' + slides[cur].dataset.title;
+    document.getElementById('prevBtn').disabled = cur === 0 && steps[cur] === 0;
+    document.getElementById('nextBtn').disabled = cur === slides.length - 1 && steps[cur] >= +slides[cur].dataset.max;
+    try { history.replaceState(null, '', '#s' + (cur + 1)); } catch (e) {}
+  }
+  function next() { if (steps[cur] < +slides[cur].dataset.max) { steps[cur]++; show(cur); } else if (cur < slides.length - 1) show(cur + 1, 0); }
+  function prev() { if (steps[cur] > 0) { steps[cur]--; show(cur); } else if (cur > 0) show(cur - 1, +slides[cur - 1].dataset.max); }
+  window.Deck = {
+    setStep(slide, n) { const i = slides.indexOf(slide); steps[i] = Math.max(0, Math.min(+slide.dataset.max, n)); if (i === cur && !narrow.matches) show(cur); else applyStep(i); },
+    getStep(slide) { return steps[slides.indexOf(slide)]; }
+  };
+
+  document.getElementById('nextBtn').onclick = next;
+  document.getElementById('prevBtn').onclick = prev;
+  document.addEventListener('keydown', e => {
+    if (e.target.closest('input, textarea, select')) return;
+    const ov = document.getElementById('overview');
+    if (e.key === 'Escape' && !ov.hidden) { ov.hidden = true; return; }
+    if (e.key === 'o' || e.key === 'O') { toggleOverview(); return; }
+    if (e.key === 'f' || e.key === 'F') { fullscreen(); return; }
+    if (narrow.matches || !ov.hidden) return;
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { e.preventDefault(); next(); }
+    else if (['ArrowLeft', 'PageUp'].includes(e.key)) { e.preventDefault(); prev(); }
+    else if (e.key === 'Home') show(0, 0);
+    else if (e.key === 'End') show(slides.length - 1, 0);
+  });
+  let sx = null;
+  deck.addEventListener('pointerdown', e => { if (e.pointerType !== 'mouse') sx = e.clientX; });
+  deck.addEventListener('pointerup', e => { if (sx === null || narrow.matches) return; const dx = e.clientX - sx; sx = null; if (Math.abs(dx) > 60) (dx < 0 ? next : prev)(); });
+
+  function fullscreen() {
+    try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {}); } catch (e) {}
+  }
+  document.getElementById('fsBtn').onclick = fullscreen;
+
+  function toggleOverview() {
+    const ov = document.getElementById('overview');
+    if (!ov.hidden) { ov.hidden = true; return; }
+    const body = document.getElementById('ovBody'); body.innerHTML = '';
+    let sec = null, grid = null;
+    slides.forEach((s, i) => {
+      if (s.dataset.section !== sec) {
+        sec = s.dataset.section;
+        const d = document.createElement('div'); d.className = 'ov-sec';
+        d.innerHTML = '<h3></h3><div class="ov-grid"></div>'; d.querySelector('h3').textContent = sec;
+        body.appendChild(d); grid = d.querySelector('.ov-grid');
+      }
+      const b = document.createElement('button'); b.type = 'button'; if (i === cur) b.className = 'cur';
+      b.innerHTML = '<span></span><b style="font-weight:500"></b>';
+      b.querySelector('span').textContent = i + 1; b.querySelector('b').textContent = s.dataset.title;
+      b.onclick = () => { ov.hidden = true; if (narrow.matches) s.scrollIntoView({ behavior: 'smooth' }); else show(i, 0); };
+      grid.appendChild(b);
+    });
+    ov.hidden = false;
+  }
+  document.getElementById('ovBtn').onclick = toggleOverview;
+  document.getElementById('ovClose').onclick = () => { document.getElementById('overview').hidden = true; };
+
+  const m = /^#s(\d+)$/.exec(location.hash);
+  show(m ? +m[1] - 1 : 0, 0);
+  slides.forEach((s, i) => { if (i !== cur) applyStep(i); });
+})();
+
+/* ---------- training samples ---------- */
+(() => {
+  const words = ['LLMs', 'learn', 'to', 'predict', 'one', 'word', 'at', 'a', 'time'];
+  const rowsEl = document.getElementById('tsRows');
+  let at = 1, timer = null;
+  function render() {
+    rowsEl.innerHTML = '';
+    for (let r = 1; r < words.length; r++) {
+      const row = document.createElement('div'); row.className = 'row';
+      row.style.gap = '.35em'; row.style.opacity = r === at ? 1 : .45; row.style.transition = 'opacity .2s';
+      words.forEach((w, j) => {
+        const c = document.createElement('span');
+        c.className = 'chip ' + (j < r ? 'on' : j === r ? 'tgt' : 'off');
+        c.textContent = w; row.appendChild(c);
+      });
+      rowsEl.appendChild(row);
+    }
+    document.getElementById('tsInfo').textContent = 'Sample ' + at + ' of ' + (words.length - 1) + ': input “' + words.slice(0, at).join(' ') + '” → target “' + words[at] + '”';
+  }
+  function step(d) { at = ((at - 1 + d + (words.length - 1)) % (words.length - 1)) + 1; render(); }
+  document.getElementById('tsNext').onclick = () => step(1);
+  document.getElementById('tsPrev').onclick = () => step(-1);
+  const play = document.getElementById('tsPlay');
+  play.onclick = () => {
+    if (timer) { clearInterval(timer); timer = null; play.textContent = 'Play'; return; }
+    play.textContent = 'Pause'; timer = setInterval(() => step(1), 900);
+  };
+  render();
+})();
+
+/* ---------- decoding playground ---------- */
+(() => {
+  const V = [['powerful', 2.3], ['innovative', 2.1], ['complex', 1.3], ['useful', 1.0], ['exciting', 0.7], ['popular', 0.5], ['expensive', 0.2], ['hard', 0.0], ['weak', -0.9], ['limited', -1.6]];
+  const st = { mode: 'topp', T: 1, k: 4, p: 0.9, counts: null, last: null, out: [] };
+  const $ = id => document.getElementById(id);
+  function dist() {
+    const z = V.map(([, l]) => l / st.T), mx = Math.max(...z);
+    const e = z.map(x => Math.exp(x - mx)), s = e.reduce((a, b) => a + b, 0);
+    const p = e.map(x => x / s);
+    const order = p.map((v, i) => i).sort((a, b) => p[b] - p[a]);
+    const keep = new Set();
+    if (st.mode === 'greedy') keep.add(order[0]);
+    else if (st.mode === 'topk') order.slice(0, st.k).forEach(i => keep.add(i));
+    else if (st.mode === 'topp') { let c = 0; for (const i of order) { keep.add(i); c += p[i]; if (c >= st.p - 1e-9) break; } }
+    else order.forEach(i => keep.add(i));
+    const ks = [...keep].reduce((a, i) => a + p[i], 0);
+    return { p, order, keep, q: p.map((v, i) => keep.has(i) ? v / ks : 0) };
+  }
+  function draw(d) { if (st.mode === 'greedy') return d.order[0]; let r = Math.random(), acc = 0; for (const i of d.order) { acc += d.q[i]; if (r < acc) return i; } return d.order[0]; }
+  function render() {
+    const d = dist();
+    $('cT').classList.toggle('disabled', st.mode === 'greedy');
+    $('cK').classList.toggle('disabled', st.mode !== 'topk');
+    $('cP').classList.toggle('disabled', st.mode !== 'topp');
+    $('spT').disabled = st.mode === 'greedy'; $('spK').disabled = st.mode !== 'topk'; $('spP').disabled = st.mode !== 'topp';
+    const box = $('spBars'); box.innerHTML = '';
+    const total = st.counts ? st.counts.reduce((a, b) => a + b, 0) : 0;
+    d.order.forEach(i => {
+      const row = document.createElement('div');
+      row.className = 'pbar' + (d.keep.has(i) ? '' : ' cut') + (st.last === i ? ' hit' : '');
+      const c = st.counts ? st.counts[i] / total : 0;
+      row.innerHTML = '<span class="w"></span><span class="track"><i></i><b></b></span><span class="v"></span><span class="c"></span>';
+      row.querySelector('.w').textContent = V[i][0];
+      row.querySelector('i').style.width = (d.q[i] * 100) + '%';
+      row.querySelector('b').style.width = (c * 100) + '%';
+      row.querySelector('.v').textContent = (d.q[i] * 100).toFixed(1) + '%';
+      row.querySelector('.c').textContent = st.counts ? st.counts[i] : '';
+      row.title = 'Before truncation: ' + (d.p[i] * 100).toFixed(1) + '%';
+      box.appendChild(row);
+    });
+    $('spOut').innerHTML = 'Deep learning is very ' + st.out.map(w => '<em>' + w + '</em>').join(' ');
+  }
+  $('spMode').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    st.mode = b.dataset.m; st.counts = null; st.last = null;
+    $('spMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    render();
+  });
+  [['spT', 'T', v => v.toFixed(2)], ['spK', 'k', v => v], ['spP', 'p', v => v.toFixed(2)]].forEach(([id, key, f]) => {
+    $(id).addEventListener('input', e => { st[key] = +e.target.value; $(id + 'o').textContent = f(st[key]); st.counts = null; render(); });
+  });
+  $('spOne').onclick = () => { const i = draw(dist()); st.last = i; st.out = [V[i][0]]; render(); };
+  $('spMany').onclick = () => { const d = dist(); st.counts = V.map(() => 0); for (let n = 0; n < 100; n++) st.counts[draw(d)]++; st.last = null; render(); };
+  $('spReset').onclick = () => { st.counts = null; st.last = null; st.out = []; render(); };
+  render();
+})();
+
+/* ---------- chunking ---------- */
+(() => {
+  const TEXT = 'Retrieval-augmented generation keeps a language model grounded in your own documents. First, collect the documents and divide them into chunks. Each chunk becomes a vector through an embedding model, and the vectors go into a vector database such as Chroma. When a user asks a question, the system embeds the question, finds the chunks with the most similar vectors, and puts their text into the prompt. The model then writes an answer from that text. Chunk size and overlap decide how much context each chunk carries: small chunks are precise but can cut an idea in half, while large chunks keep ideas whole but add noise and cost more tokens.';
+  const $ = id => document.getElementById(id);
+  function split(size, overlap) {
+    const out = []; let start = 0;
+    while (start < TEXT.length) {
+      let end = Math.min(start + size, TEXT.length);
+      if (end < TEXT.length) { const sp = TEXT.lastIndexOf(' ', end); if (sp > start) end = sp; }
+      out.push([start, end]);
+      if (end >= TEXT.length) break;
+      const nx = end - overlap;
+      start = nx > start ? nx : end;
+      while (TEXT[start] === ' ') start++;
+    }
+    return out;
+  }
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  function render() {
+    let size = +$('ckS').value, ov = +$('ckO').value;
+    if (ov >= size) { ov = size - 10; $('ckO').value = ov; }
+    $('ckSo').textContent = size; $('ckOo').textContent = ov;
+    const ch = split(size, ov); const box = $('ckOut'); box.innerHTML = '';
+    let prevEnd = 0, shared = 0;
+    ch.forEach(([s, e], i) => {
+      const d = document.createElement('div'); d.className = 'chunk';
+      const cut = i > 0 && s < prevEnd ? prevEnd : s;
+      shared += Math.max(0, cut - s);
+      d.innerHTML = '<span class="lbl">chunk ' + (i + 1) + ' · ' + (e - s) + ' chars</span>' + (cut > s ? '<mark>' + esc(TEXT.slice(s, cut)) + '</mark>' : '') + esc(TEXT.slice(cut, e));
+      box.appendChild(d); prevEnd = e;
+    });
+    $('ckN').textContent = ch.length;
+    $('ckF').textContent = TEXT.length + ' chars of text · ' + shared + ' repeated';
+  }
+  $('ckS').addEventListener('input', render); $('ckO').addEventListener('input', render);
+  render();
+})();
+
+/* ---------- retrieval metrics ---------- */
+(() => {
+  const R = ['Huggy likes to work downtown', 'Cuddly spends most days surrounded by books', 'He was in a cuddly mood', 'Where is Paris located?', 'Cuddly works at the city library', 'Teddy bears are soft toys', 'Cuddly’s library card expires in May', 'The weather is cold today'];
+  const rel = new Set([1, 4]);
+  const $ = id => document.getElementById(id);
+  function render() {
+    const k = +$('rmK').value; let T = +$('rmT').value;
+    if (T < rel.size) { T = rel.size; $('rmT').value = T; }
+    $('rmKo').textContent = k; $('rmTo').textContent = T;
+    const list = $('rmList'); list.innerHTML = '';
+    R.forEach((t, i) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'rank' + (i >= k ? ' outk' : '');
+      b.setAttribute('aria-pressed', rel.has(i));
+      b.innerHTML = '<span class="r">#' + (i + 1) + '</span><span></span><span class="tag">' + (rel.has(i) ? 'relevant' : 'not relevant') + '</span>';
+      b.children[1].textContent = t;
+      b.onclick = () => { rel.has(i) ? rel.delete(i) : rel.add(i); render(); };
+      list.appendChild(b);
+    });
+    const hits = [...Array(k).keys()].filter(i => rel.has(i));
+    const P = hits.length / k, Rc = T ? hits.length / T : 0;
+    const first = hits.length ? hits[0] + 1 : 0, RR = first ? 1 / first : 0;
+    const dcg = hits.reduce((a, i) => a + 1 / Math.log2(i + 2), 0);
+    let idcg = 0; for (let i = 0; i < Math.min(T, k); i++) idcg += 1 / Math.log2(i + 2);
+    const nd = idcg ? dcg / idcg : 0;
+    const M = [
+      ['Precision@' + k, P, hits.length + ' relevant / ' + k + ' retrieved'],
+      ['Recall@' + k, Rc, hits.length + ' found / ' + T + ' relevant in KB'],
+      ['RR@' + k, RR, first ? '1 / rank of first hit (' + first + ')' : 'no hit in top ' + k],
+      ['NDCG@' + k, nd, 'DCG ' + dcg.toFixed(2) + ' / ideal ' + idcg.toFixed(2)]
+    ];
+    $('rmOut').innerHTML = '';
+    M.forEach(([n, v, f]) => {
+      const d = document.createElement('div'); d.className = 'metric';
+      d.innerHTML = '<div class="name"></div><div class="val"></div><div class="f"></div>';
+      d.children[0].textContent = n; d.children[1].textContent = v.toFixed(2); d.children[2].textContent = f;
+      $('rmOut').appendChild(d);
+    });
+  }
+  $('rmK').addEventListener('input', render); $('rmT').addEventListener('input', render);
+  render();
+})();
+
+/* ---------- MCP: N x M vs N + M ---------- */
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const st = { mode: 'p2p', n: 3, m: 3 };
+  const $ = id => document.getElementById(id);
+  const el = (t, a, css) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (css) e.setAttribute('style', css); return e; };
+  function ys(c) { const H = 340, gap = H / (c + 1); return [...Array(c).keys()].map(i => gap * (i + 1)); }
+  function render() {
+    const svg = $('mcpSvg'); svg.innerHTML = '';
+    const L = ys(st.n), T = ys(st.m), lx = 140, tx = 620, hx = 380;
+    const lines = el('g', {}, 'stroke-width:2;fill:none');
+    if (st.mode === 'p2p') {
+      L.forEach(a => T.forEach(b => lines.appendChild(el('line', { x1: lx + 60, y1: a, x2: tx - 60, y2: b }, 'stroke:var(--rose);opacity:.7'))));
+    } else {
+      L.forEach(a => lines.appendChild(el('line', { x1: lx + 60, y1: a, x2: hx - 55, y2: 170 }, 'stroke:var(--accent)')));
+      T.forEach(b => lines.appendChild(el('line', { x1: hx + 55, y1: 170, x2: tx - 60, y2: b }, 'stroke:var(--accent)')));
+    }
+    svg.appendChild(lines);
+    const box = (x, y, label, fill, stroke) => {
+      const h = Math.min(40, 300 / Math.max(st.n, st.m) - 6);
+      svg.appendChild(el('rect', { x: x - 60, y: y - h / 2, width: 120, height: h, rx: 8 }, 'fill:' + fill + ';stroke:' + stroke + ';stroke-width:1.5'));
+      const t = el('text', { x, y: y + 6, 'text-anchor': 'middle' }, 'fill:var(--ink);font-size:17px;font-weight:600'); t.textContent = label; svg.appendChild(t);
+    };
+    L.forEach((y, i) => box(lx, y, 'LLM ' + (i + 1), 'var(--accent-soft)', 'var(--accent)'));
+    T.forEach((y, i) => box(tx, y, 'Tool ' + (i + 1), 'var(--amber-soft)', 'var(--amber)'));
+    const cap = (x, s) => { const t = el('text', { x, y: 18, 'text-anchor': 'middle' }, 'fill:var(--muted);font-size:14px;letter-spacing:1.5px'); t.textContent = s; svg.appendChild(t); };
+    cap(lx, 'LLM APPS'); cap(tx, 'TOOLS & SERVICES');
+    if (st.mode === 'mcp') {
+      svg.appendChild(el('rect', { x: hx - 55, y: 130, width: 110, height: 80, rx: 40 }, 'fill:var(--accent);stroke:none'));
+      const t = el('text', { x: hx, y: 168, 'text-anchor': 'middle' }, 'fill:var(--on-accent);font-size:24px;font-weight:700'); t.textContent = 'MCP'; svg.appendChild(t);
+      const t2 = el('text', { x: hx, y: 190, 'text-anchor': 'middle' }, 'fill:var(--on-accent);font-size:11px'); t2.textContent = 'standard protocol'; svg.appendChild(t2);
+    }
+    const p2p = st.mode === 'p2p';
+    $('mcpN').textContent = p2p ? st.n * st.m : st.n + st.m;
+    $('mcpF').textContent = p2p ? 'N × M = ' + st.n + ' × ' + st.m : 'N + M = ' + st.n + ' + ' + st.m;
+    $('mcpTitle').textContent = p2p ? 'Goal: Avoid Duplicating Tool Integrations' : 'MCP = Model Context Protocol';
+    $('mcpTxt').textContent = p2p
+      ? 'Custom point-to-point code. Adding 1 tool needs code for all N models; adding 1 model needs integration with all M tools.'
+      : 'Connect tools and data to LLMs in a standard way. Each app and each tool implements MCP once.';
+  }
+  $('mcpMode').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; st.mode = b.dataset.m; $('mcpMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); render(); });
+  $('mcpAddL').onclick = () => { if (st.n < 7) st.n++; render(); };
+  $('mcpAddT').onclick = () => { if (st.m < 7) st.m++; render(); };
+  $('mcpRst').onclick = () => { st.n = 3; st.m = 3; render(); };
+  render();
+})();
+
+/* ---------- ReAct stepper ---------- */
+(() => {
+  const S = [
+    { n: 'Input', t: 'Should I bring an umbrella today?', note: 'Input starts the loop: a manually entered question, or an external event such as a metric going past a threshold.' },
+    { n: 'Observe', t: 'The user wants to know if it will rain today. I don’t know where they are or what the forecast is.', note: 'Synthesize previous actions and state what is currently known, including the model’s own knowledge. A reasoning-heavy step to work out what is needed.' },
+    { n: 'Plan', t: 'Find out where the user is.', note: 'Detail what tasks need to be done and which tools to call.' },
+    { n: 'Act', t: 'get_user_location()', note: 'Perform an action via an API, or look for information in a database of documents.' },
+    { n: 'Observe', t: 'The user is in Phnom Penh. I still need today’s forecast.', note: 'The tool result feeds back into a new observation.' },
+    { n: 'Plan', t: 'Check today’s weather in Phnom Penh.', note: 'A new plan based on the new facts.' },
+    { n: 'Act', t: 'get_weather(city="Phnom Penh")  →  80% chance of rain this afternoon', note: 'The agent calls the next tool and gets the answer it needs.' },
+    { n: 'Output', t: 'Yes, bring an umbrella. There’s an 80% chance of rain in Phnom Penh this afternoon.', note: 'The loop ends when the goal is reached.' }
+  ];
+  const slide = document.getElementById('raSvg').closest('.slide');
+  const NS = 'http://www.w3.org/2000/svg';
+  const P = { Input: [80, 60], Observe: [280, 60], Plan: [470, 170], Act: [280, 250], Output: [80, 250] };
+  const el = (t, a, css) => { const e = document.createElementNS(NS, t); for (const k in a) e.setAttribute(k, a[k]); if (css) e.setAttribute('style', css); return e; };
+  function render(i) {
+    const s = S[i], svg = document.getElementById('raSvg'); svg.innerHTML = '';
+    svg.appendChild(el('defs', {})).innerHTML = '<marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--muted)"/></marker>';
+    const edges = [['M140 60 H212'], ['M348 60 H470 V140'], ['M420 194 L342 240'], ['M280 225 V88'], ['M212 250 H140']];
+    edges.forEach(([d], j) => {
+      const on = (j === 4 && i === 7);
+      svg.appendChild(el('path', { d, 'marker-end': 'url(#ah2)' }, 'fill:none;stroke-width:2;stroke:' + (on ? 'var(--accent)' : 'var(--muted)') + ';opacity:' + (j === 4 && i < 7 ? .25 : 1)));
+    });
+    Object.entries(P).forEach(([name, [x, y]]) => {
+      const active = name === s.n;
+      const fill = active ? (name === 'Act' ? 'var(--amber-soft)' : 'var(--accent-soft)') : 'var(--surface)';
+      const stroke = active ? (name === 'Act' ? 'var(--amber)' : 'var(--accent)') : 'var(--line)';
+      svg.appendChild(el('rect', { x: x - 62, y: y - 24, width: 124, height: 48, rx: 10 }, 'fill:' + fill + ';stroke:' + stroke + ';stroke-width:' + (active ? 2.5 : 1.5)));
+      const t = el('text', { x, y: y + 7, 'text-anchor': 'middle' }, 'font-size:19px;font-weight:600;fill:' + (active ? 'var(--ink)' : 'var(--muted)')); t.textContent = name; svg.appendChild(t);
+    });
+    document.getElementById('raTitle').textContent = 'Step ' + (i + 1) + ' of ' + S.length + ' · ' + s.n;
+    document.getElementById('raNote').textContent = s.note;
+    const tr = document.getElementById('raTrace'); tr.innerHTML = '';
+    S.slice(0, i + 1).forEach((x, j) => {
+      const d = document.createElement('div'); if (j === i) d.className = 'cur';
+      d.innerHTML = '<b></b><span></span>'; d.children[0].textContent = x.n; d.children[1].textContent = x.t; tr.appendChild(d);
+    });
+    tr.scrollTop = tr.scrollHeight;
+    document.getElementById('raPrev').disabled = i === 0;
+    document.getElementById('raNext').disabled = i === S.length - 1;
+  }
+  slide.addEventListener('step', e => render(e.detail));
+  document.getElementById('raNext').onclick = () => Deck.setStep(slide, Deck.getStep(slide) + 1);
+  document.getElementById('raPrev').onclick = () => Deck.setStep(slide, Deck.getStep(slide) - 1);
+  render(Deck.getStep(slide));
+})();
+</script>
