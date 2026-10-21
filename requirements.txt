@@ -1,0 +1,18 @@
+# Workshop 2 — Python >= 3.10
+# Notebook [1] Document Ingestion
+chromadb==1.5.9
+pymupdf==1.28.2
+python-dotenv==1.2.2
+
+# Notebook [2] MCP Server on Modal
+mcp==2.3.0
+modal==1.6.2
+
+# Notebook [3] Chat with Docs UI
+google-genai==2.8.0
+gradio==6.15.2
+ddgs==9.14.4
+
+# Notebook [4] Telegram Bot
+httpx==0.28.1
+fastapi[standard]==0.135.1

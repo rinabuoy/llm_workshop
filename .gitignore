@@ -1,0 +1,21 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Local Chroma / Gradio data
+chroma/
+.gradio/
+flagged/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
